@@ -2,11 +2,16 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!78 &1
 TagManager:
+<<<<<<< HEAD
   serializedVersion: 3
   tags:
   - Goal1
   - Goal2
   - Ball
+=======
+  serializedVersion: 2
+  tags: []
+>>>>>>> 9c1b6ec211543d9909daaf7c97650e50b6f56abf
   layers:
   - Default
   - TransparentFX
@@ -44,6 +49,7 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+<<<<<<< HEAD
   m_RenderingLayers:
   - Default
   - Light Layer 1
@@ -54,3 +60,5 @@ TagManager:
   - Light Layer 6
   - Light Layer 7
   m_MigratedRenderPipelines: []
+=======
+>>>>>>> 9c1b6ec211543d9909daaf7c97650e50b6f56abf
