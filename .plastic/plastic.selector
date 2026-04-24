@@ -1,0 +1,4 @@
+repository "AR_PingPong_Base/AR_PingPong_Base@2475922503928@cloud"
+  path "/"
+    br "/main"
+    co "/main"
