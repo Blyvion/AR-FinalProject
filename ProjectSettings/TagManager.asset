@@ -3,7 +3,20 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - table_far
+  - floor
+  - robot_paddle
+  - player_paddle
+  - table_near
+  - net
+  - settings done
+  - menu button
+  - robot settings
+  - general settings
+  - robot settings button
+  - general settings button
+  - blade
   layers:
   - Default
   - TransparentFX
