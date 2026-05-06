@@ -1,0 +1,5 @@
+C:/Users/anthi/Documents/AugmentedReality_win/AR-FinalProject/.utmp/RelWithDebInfo/1t6q5e3r/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/anthi/Documents/AugmentedReality_win/AR-FinalProject/.utmp/RelWithDebInfo/1t6q5e3r/arm64-v8a/CMakeFiles/rebuild_cache.dir
+C:/Users/anthi/Documents/AugmentedReality_win/AR-FinalProject/.utmp/RelWithDebInfo/1t6q5e3r/arm64-v8a/GameActivity/CMakeFiles/game.dir
+C:/Users/anthi/Documents/AugmentedReality_win/AR-FinalProject/.utmp/RelWithDebInfo/1t6q5e3r/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
+C:/Users/anthi/Documents/AugmentedReality_win/AR-FinalProject/.utmp/RelWithDebInfo/1t6q5e3r/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir
