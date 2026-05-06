@@ -627,6 +627,7 @@ public class Robot : MonoBehaviour {
 	    repeated_serve += 1;
 	}
         Ball ball = play.start_robot_serve();
+        if (ball == null) return;   // multiplayer or no ball available
         s.toss.throw_motion(ball, s.toss.throw_start_time());
         ball.freeze = true;
         PaddleMotion motion = s.setup_to_serve(paddle.transform);

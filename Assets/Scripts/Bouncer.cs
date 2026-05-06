@@ -27,7 +27,7 @@ public class Bouncer : MonoBehaviour {
     public float extra_size = 0f;  // Hit rectangle even if outside bounds by as much as this factor times wall velocity times time step.
     float time_step = 1.0f/90;        // TODO: Use centrally defined time step.
 
-    void Start() {
+    void Awake() {
         wall_state = new WallState (transform);
         last_wall_state = new WallState (transform);
     }

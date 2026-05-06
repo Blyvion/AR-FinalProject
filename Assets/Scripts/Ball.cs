@@ -15,6 +15,13 @@ public class Ball : MonoBehaviour {
 	float cdrag, clift;
 	public bool freeze = false; // Used for instant replay.
 
+	// Scales the integration time step inside move_ball. 1 = normal, 0.1 = 10x
+	// slower (bullet time). Drives the SlowBall power-up. Only the State
+	// Authority's local physics consults this; proxies read _netPos directly,
+	// so slow-motion arrives via slower position updates without any extra
+	// proxy-side work.
+	public float speed_multiplier = 1f;
+
 	// Use this for initialization
 	void Awake () {
 		motion = new BallState (this, 0f, transform.position, Vector3.zero, Vector3.zero);
@@ -46,7 +53,7 @@ public class Ball : MonoBehaviour {
 			freeze = true;
 			return null;
 		}
-		BallState bs = ball_time_step (motion, delta_t);
+		BallState bs = ball_time_step (motion, delta_t * speed_multiplier);
 		return bs;
 	}
 

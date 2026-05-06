@@ -20,6 +20,16 @@ public class Play : MonoBehaviour {
     public List<Bouncer> marked_surfaces;
     public bool playing_game = false;
     int score_player = 0, score_robot = 0;
+
+    // ── Multiplayer (set at runtime by MultiplayerBridge / PlayerSpawner) ────
+    [HideInInspector] public bool is_multiplayer = false;
+    /// <summary>
+    /// Fired whenever the ball bounces off any surface.
+    /// MultiplayerBridge subscribes to this to route Fusion authority calls
+    /// without requiring Fusion types inside this script.
+    /// args: (Ball that bounced, Bouncer tag of the surface hit)
+    /// </summary>
+    [HideInInspector] public System.Action<Ball, string> on_ball_hit;
     public SettingsUI settings;
     public GameObject vr_camera;
     public OVRPassthroughLayer pass_through_video;
@@ -123,23 +133,25 @@ public class Play : MonoBehaviour {
                 ; // net ball, play continues.
             } else {
                 keep_score (play_state);
-                // Debug.Log ("Point over, last state " + play_state.name + ", hit surface " + bn.tag);
                 play_state = null;
-		if (robot.auto_serve)
+		if (!is_multiplayer && robot.auto_serve)
 		    robot.serve();
             }
         }
         if (bn.tag == "player_paddle") {
             if (haptics_duration > 0 && haptics_strength > 0)
                 paddle_hand.wand.haptic_pulse (haptics_duration, haptics_strength);
-            Stroke s = return_ball (b);
+            // In multiplayer the bridge handles ball authority; in singleplayer the robot returns.
+            Stroke s = (!is_multiplayer) ? return_ball (b) : null;
             float return_time = (s == null ? 0f : s.contact_time - b.motion.time);
             report_speeds (b, bn, return_time);
             enable_markers();
+            on_ball_hit?.Invoke(b, bn.tag);   // notify networking layer
 //	    report_imu_state();  // Only for SteamVR
         }
         if (bn.tag == "robot_paddle") {
             disable_markers();
+            on_ball_hit?.Invoke(b, bn.tag);   // notify networking layer
             /*
             Debug.Log("Robot paddle hit time " + b.motion.time
             + " hit height " + b.motion.position.y
@@ -177,6 +189,24 @@ public class Play : MonoBehaviour {
     
     public void hold_ball(Hand hand) {
         Ball b = balls.new_ball ();
+        if (b == null) return;
+        // The peer that is about to serve must own StateAuthority of the ball,
+        // otherwise their hand position cannot drive _netPos and the other peer
+        // will see the ball stuck wherever the previous authority left it.
+        if (is_multiplayer) {
+            var nb = b.GetComponent<NetworkedBall>();
+            if (nb != null && nb.Object != null && nb.Object.IsValid) {
+                if (!nb.Object.HasStateAuthority)
+                    nb.Object.RequestStateAuthority();
+                // Reset any leftover power-up state from the previous rally.
+                // The pool recycles the same N NetworkedBalls, so a ball that
+                // grew via the BigBall power-up keeps SizeMultiplier=10 across
+                // serves unless we clear it here. SetSizeMultiplier queues the
+                // write if authority hasn't fully transferred yet.
+                nb.SetSizeMultiplier(1f);
+                nb.SetSpeedMultiplier(1f);   // also clears any active SlowBall timer
+            }
+        }
         hand.hold_ball (b);
         ball_in_play = b;
         play_state = player_to_serve;
@@ -189,6 +219,10 @@ public class Play : MonoBehaviour {
     }
 
     public Ball start_robot_serve() {
+        if (is_multiplayer) {
+            Debug.Log("[Play] start_robot_serve blocked — multiplayer mode");
+            return null;
+        }
         play_state = robot_to_serve;
         Ball ball = balls.new_ball ();
         ball_in_play = ball;
@@ -298,9 +332,15 @@ public class Play : MonoBehaviour {
     
     public void enable_show_room(bool show_room)
     {
-	pass_through_video.enabled = show_room;
-	floor.enabled = !show_room;
-	passthrough_camera.clearFlags = (show_room ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox);
+        pass_through_video.enabled = show_room;
+        floor.enabled = !show_room;
+
+        var clearColor = new Color(0f, 0f, 0f, 0f);
+        foreach (var cam in vr_camera.GetComponentsInChildren<Camera>(true))
+        {
+            cam.clearFlags      = show_room ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox;
+            cam.backgroundColor = clearColor;
+        }
     }
 }
 

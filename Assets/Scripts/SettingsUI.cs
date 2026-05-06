@@ -38,6 +38,10 @@ public class SettingsUI : MonoBehaviour
     public Toggle move_table, hide_table;
     public Table table;
 
+    public Button join;
+    public Button host;
+    public NetworkConnectionManager network_manager;
+
     // Serve settings
     public Toggle auto_serve, repeat_serve;
     public Toggle serve_short, serve_medium, serve_long, serve_longest;
@@ -67,6 +71,7 @@ public class SettingsUI : MonoBehaviour
         // of table pressed.
         bind_show_hide_buttons();
 	bind_save_button();
+	bind_network_buttons();
 
         // Buttons change settings as soon as they are clicked.
         bind_grip_buttons();
@@ -169,6 +174,7 @@ public class SettingsUI : MonoBehaviour
 
     void add_ball_color(Toggle t, string name)
     {
+        if (t == null) return;
         t.onValueChanged.AddListener(delegate {if (t.isOn) play.balls.set_ball_coloring(name);});
     }
     
@@ -488,7 +494,14 @@ public class SettingsUI : MonoBehaviour
     {
 	adjust_grip.onValueChanged.AddListener(buttons.enable_adjust_grip);
     }
-    
+
+    void bind_network_buttons()
+    {
+	if (network_manager == null) return;
+	if (host != null) host.onClick.AddListener(network_manager.HostGame);
+	if (join != null) join.onClick.AddListener(network_manager.JoinGame);
+    }
+
 }
 
 [Serializable]
