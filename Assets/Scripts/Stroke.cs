@@ -1,16 +1,16 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Stroke : PaddleMotion {
-	public float contact_time;  // Time at ball contact.
-	public float pre_swing_duration, post_swing_duration;  // Duration of swing before contact and after.
-	public Vector3 position, normal, velocity;  // State of paddle at ball contact.
-	float elbow_distance = 0.45f;  // meters from paddle center to elbow for paddle swing.
-	Vector3 elbow_position;  // Located elbow distance along handle direction from paddle center.
-	Vector3 elbow_rotation_axis;  // Axis of swing.
-	float pre_rotation_angle, post_rotation_angle;       // Swing rotation. Radians.
-	Quaternion paddle_rotation;   // Orientation at contact.
+	public float contact_time;
+	public float pre_swing_duration, post_swing_duration;
+	public Vector3 position, normal, velocity;
+	float elbow_distance = 0.45f;
+	Vector3 elbow_position;
+	Vector3 elbow_rotation_axis;
+	float pre_rotation_angle, post_rotation_angle;
+	Quaternion paddle_rotation;
 	bool backhand;
 
 	public Stroke(float time, Vector3 position,
@@ -42,18 +42,15 @@ public class Stroke : PaddleMotion {
 	}
 
 	void compute_elbow() {
-		// Compute elbow position.
-		// Pivot paddle around elbow.
-		Vector3 elbow_direction = Vector3.Cross (velocity, normal).normalized;
+
+Vector3 elbow_direction = Vector3.Cross (velocity, normal).normalized;
 		if (elbow_direction.magnitude == 0)
-			elbow_direction = new Vector3(1,0,0); // parallel back of table.
+			elbow_direction = new Vector3(1,0,0);
 		if ((backhand && elbow_direction.x > 0) ||
 			(!backhand && elbow_direction.x < 0))
 			elbow_direction = -elbow_direction;
-		//Vector3 ed = Vector3.Cross(normal, v);
-		//if (ed.magnitude == 0)
-		//	ed = Vector3.Cross (v, Vector3.up);
-		elbow_position = position + elbow_distance * elbow_direction;
+
+elbow_position = position + elbow_distance * elbow_direction;
 		elbow_rotation_axis = Vector3.Cross(velocity, elbow_direction).normalized;
 		float ave_angle_vel = 0.5f * velocity.magnitude / elbow_distance;
 		pre_rotation_angle =  pre_swing_duration * ave_angle_vel;
@@ -61,12 +58,7 @@ public class Stroke : PaddleMotion {
 		paddle_rotation = (backhand ?
 			Quaternion.LookRotation (normal, -elbow_direction) :
 			Quaternion.LookRotation (-normal, -elbow_direction));
-		/*
-		paddle_rotation = (Quaternion.LookRotation(normal, elbow_direction)
-							* (backhand ?
-								Quaternion.LookRotation(-Vector3.right, -Vector3.forward) :
-								Quaternion.LookRotation(Vector3.right, Vector3.forward)));
-								*/
+		
 	}
 
 	public float pre_swing_acceleration() {
@@ -79,9 +71,9 @@ public class Stroke : PaddleMotion {
 	}
 
 	public void jump_to_start(Paddle p) {
-		// Jump to start of swing.
+
 		move (0f, p);
-		// Avoid collisions on jump to backswing position.
+
 		foreach (Bouncer bc in p.gameObject.GetComponentsInChildren<Bouncer> ())
 			bc.jump_wall ();
 	}
@@ -98,10 +90,9 @@ public class Stroke : PaddleMotion {
 		else
 			f = 0.5f + 0.5f * (t - contact_time) / post_swing_duration;
 
-		// Use acceleration sin(2pi*t/T).
-		float pi2 = 2*Mathf.PI;
-		float af = 2f * ((f-0.5f) - Mathf.Sin(f*pi2) / pi2);  // angle factor
-		float vf = 0.5f*(1f - Mathf.Cos(f*pi2));   // velocity factor
+float pi2 = 2*Mathf.PI;
+		float af = 2f * ((f-0.5f) - Mathf.Sin(f*pi2) / pi2);
+		float vf = 0.5f*(1f - Mathf.Cos(f*pi2));
 
 		float a = af * (f <= 0.5 ? pre_rotation_angle : post_rotation_angle);
 		Quaternion r = Quaternion.AngleAxis (a * Mathf.Rad2Deg, elbow_rotation_axis);
@@ -110,12 +101,7 @@ public class Stroke : PaddleMotion {
 		Vector3 vp = ((f > 0 && f < 1) ? vf * (r * velocity) : Vector3.zero);
 		Vector3 vap = ((f > 0 && f < 1) ? elbow_rotation_axis * (vf / elbow_distance) : Vector3.zero);
 
-		// No elbow rotation, uniform velocity.
-		// Vector3 p = position + (f-0.5f) * swing_duration * velocity;
-		// Quaternion rp = paddle_rotation;
-		// Vector3 vp = velocity;
-
-		paddle.move(p, rp, vp, vap);
+paddle.move(p, rp, vp, vap);
 
 		bool done = (f >= 1);
 		return done;

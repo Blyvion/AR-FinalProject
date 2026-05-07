@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,22 +6,20 @@ using UnityEngine;
 public class Serve {
 	public string name;
 	public Toss toss;
-	public Vector3 ball_velocity;  // After leaving paddle
-	public Vector3 ball_angular_velocity;  // After leaving paddle
+	public Vector3 ball_velocity;
+	public Vector3 ball_angular_velocity;
 
-	public Vector3 top, bounce, fall;   // Positions over net, on far table, and crossing table height
+	public Vector3 top, bounce, fall;
 	public bool double_bounce;
 
-
-	float swing_duration = 0.4f;    // seconds
-	float serve_pause_time = 0.5f;  // seconds, delay after paddle behind ball before tossing
-	float serve_set_time = 0.5f;    // seconds, time to move paddle behind ball for serving.
+float swing_duration = 0.4f;
+	float serve_pause_time = 0.5f;
+	float serve_set_time = 0.5f;
 	float max_grazing_slope = 3f;
 
 	public Serve() {
-	       // Restoring serves with JsonFrom gives these
-	       // values 0 if only the above initializers are used.
-	       swing_duration = 0.4f;
+
+swing_duration = 0.4f;
 	       serve_pause_time = 0.5f;
 	       serve_set_time = 0.5f;
 	       max_grazing_slope = 3f;
@@ -56,12 +54,11 @@ public class Serve {
 
 	public PaddleMotion setup_to_serve(Transform paddle_position) {
 
-		// Before starting serve place paddle behind ball.
-		PaddleMotion set_to_serve = new PaddleMotion();
+PaddleMotion set_to_serve = new PaddleMotion();
 		float t_toss = 0f;
 		float t_set = t_toss - serve_pause_time;
 		float t_start = t_set - serve_set_time;
-		Vector3 set_position = toss.position + new Vector3(0f,0f,0.2f);  // Behind ball
+		Vector3 set_position = toss.position + new Vector3(0f,0f,0.2f);
 		Quaternion set_rotation = Quaternion.AngleAxis(90f, new Vector3(0f,0f,1f));
 		Transform t = paddle_position;
 		set_to_serve.set_motion(t_start, t.position, t.rotation,
@@ -72,8 +69,7 @@ public class Serve {
 
 	public Stroke serve_ball(Ball ball, BallTracking ball_tracking, Paddle paddle) {
 
-		// Determine stroke to produce out-going velocity and spin
-		BallState hit_point = toss.toss_ball (ball, ball_tracking);
+BallState hit_point = toss.toss_ball (ball, ball_tracking);
 		float hit_time = hit_point.time;
 		Vector3 wdrop = Vector3.zero;
 		Bouncer bn = paddle.forehand_rubber ();
@@ -84,7 +80,7 @@ public class Serve {
 				out pv, out pn);
 		Vector3 php = hit_point.position - ball.radius * pn;
 		Stroke s = new Stroke (hit_time, php, pn, pv, 0.5f*swing_duration, 0.5f*swing_duration);
-		// Debug.Log("Planned hit time " + hit_time);
+
 		return s;
 	}
 }
@@ -96,7 +92,7 @@ public class Toss {
 	const float throw_acceleration = 9.8f;
 
 	public Toss(Vector3 position, Vector3 velocity, float hit_height) {
-		// In room coordinates.
+
 		this.position = position;
 		this.velocity = velocity;
 		this.hit_height = hit_height;

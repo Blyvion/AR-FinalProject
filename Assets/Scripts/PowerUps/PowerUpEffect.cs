@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Abstract base for every power-up. Subclass and override Apply / Revert to
-// add new behavior — NetworkPowerUp itself never needs editing.
 public abstract class PowerUpEffect : ScriptableObject
 {
     [Tooltip("Stable id used in logs/telemetry. Don't change after release.")]

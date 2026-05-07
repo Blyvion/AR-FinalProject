@@ -43,9 +43,7 @@ public class PaddleTrack : MonoBehaviour {
 	Mesh mesh = GetComponent<MeshFilter>().mesh;
 	Component [] templates = GetComponentsInChildren<MeshFilter>();
 
-	// For some reason templates contains the mesh filter of the
-	// paddle tracker game object in addition to its children.
-	int n = positions.Count * (templates.Length - 1);
+int n = positions.Count * (templates.Length - 1);
 	CombineInstance [] instances = new CombineInstance [n];
 	int i = 0;
 	Vector3 no_scale = new Vector3(1,1,1);
@@ -66,10 +64,6 @@ public class PaddleTrack : MonoBehaviour {
 
 	mesh.CombineMeshes(instances);
 
-	/*
-	for (int p = 0 ; p < positions.Count ; ++p)
-	    Debug.Log("Accel " + p + " " + accel[p] + " mag " + accel[p].magnitude);
-	*/
-    }
+}
     
 }

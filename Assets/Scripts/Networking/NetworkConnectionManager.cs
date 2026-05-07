@@ -8,10 +8,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-/// <summary>
-/// Attach to a persistent GameObject (e.g. "NetworkManager") in the scene.
-/// Wire HostGame() and JoinGame() to your existing UI Buttons via the Inspector.
-/// </summary>
 public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
 {
     public enum NetState { Disconnected, Connecting, InMatch }
@@ -48,32 +44,25 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
 
     void Update()
     {
-        // Editor / desktop test shortcuts: H = Host, J = Join.
+
         var kb = Keyboard.current;
         if (kb == null || _state != NetState.Disconnected) return;
         if (kb.hKey.wasPressedThisFrame) HostGame();
         else if (kb.jKey.wasPressedThisFrame) JoinGame();
     }
 
-    // ─── Public entry points — wire these to your UI Buttons ────────────────
+public void HostGame() => StartSession(GameMode.Host, GetRoomName());
 
-    /// <summary>Creates a Host session. Bind to your "Host" button's OnClick.</summary>
-    public void HostGame() => StartSession(GameMode.Host, GetRoomName());
+public void JoinGame() => StartSession(GameMode.Client, GetRoomName());
 
-    /// <summary>Joins an existing session. Bind to your "Join" button's OnClick.</summary>
-    public void JoinGame() => StartSession(GameMode.Client, GetRoomName());
-
-    /// <summary>Leaves the current session. Bind to a "Leave" button's OnClick.</summary>
-    public async void LeaveGame()
+public async void LeaveGame()
     {
         if (_runner == null) return;
         ApplyState(NetState.Connecting, "Disconnecting…");
         await _runner.Shutdown();
     }
 
-    // ─── Session startup ─────────────────────────────────────────────────────
-
-    private async void StartSession(GameMode mode, string roomName)
+private async void StartSession(GameMode mode, string roomName)
     {
         if (_state != NetState.Disconnected) return;
         ApplyState(NetState.Connecting,
@@ -89,13 +78,7 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
         _runner.ProvideInput = true;
         _runner.AddCallbacks(this);
 
-        // Without a NetworkSceneManager, scene-placed NetworkObjects
-        // (GameManager → PlayerSpawner/MultiplayerBridge, etc.) are NEVER registered
-        // with the runner — IPlayerJoined fires on nothing, no avatars spawn, no
-        // replication runs. Without a NetworkObjectProvider, Runner.Spawn cannot
-        // resolve prefabs. Both must be present on the runner GameObject; we add
-        // them programmatically so the bare NetworkRunner.prefab keeps working.
-        var sceneManager = _runner.GetComponent<INetworkSceneManager>()
+var sceneManager = _runner.GetComponent<INetworkSceneManager>()
                         ?? (INetworkSceneManager)_runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
         var objectProvider = _runner.GetComponent<INetworkObjectProvider>()
                           ?? (INetworkObjectProvider)_runner.gameObject.AddComponent<NetworkObjectProviderDefault>();
@@ -107,19 +90,14 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
             PlayerCount    = 2,
             SceneManager   = sceneManager,
             ObjectProvider = objectProvider,
-            // Scene intentionally omitted — passing one causes a LoadScene(Single)
-            // which destroys the OVR camera rig and breaks passthrough. With no
-            // Scene set, NetworkSceneManagerDefault only registers existing scene
-            // network objects; it never calls LoadScene.
-        });
+
+});
 
         if (!result.Ok)
             ApplyState(NetState.Disconnected, $"Failed: {result.ShutdownReason}");
     }
 
-    // ─── State machine ──────────────────────────────────────────────────────
-
-    private void ApplyState(NetState s, string message)
+private void ApplyState(NetState s, string message)
     {
         _state = s;
         if (_statusText) _statusText.text = message;
@@ -140,9 +118,7 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
             ? _roomNameField.text.Trim()
             : "PingPong1v1";
 
-    // ─── INetworkRunnerCallbacks ─────────────────────────────────────────────
-
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
+public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
         int count = runner.ActivePlayers.Count();
         Debug.Log($"[Net] OnPlayerJoined player={player} totalPlayers={count} isServer={runner.IsServer}");
@@ -187,24 +163,15 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
         {
             _play.is_multiplayer = true;
             _play.is_host        = runner.IsServer;
-            _play.start_game();   // reset scores to 0 and set playing_game = true
+            _play.start_game();
         }
 
-        // Move THIS peer's VR rig to its assigned side of the table. Until now the
-        // spawn points only positioned the network avatar; the player's real camera
-        // and hands stayed at the scene default (side A), which is why the client
-        // could not see their own paddle and the host could not see the client's.
-        Transform mySpawn = runner.IsServer ? _sideASpawn : _sideBSpawn;
+Transform mySpawn = runner.IsServer ? _sideASpawn : _sideBSpawn;
         if (_play != null && _play.vr_camera != null && mySpawn != null)
         {
             _play.vr_camera.transform.position = mySpawn.position;
 
-            // Orient the rig toward the world origin (table center) regardless of
-            // how the spawn Transform was rotated in the scene. Without this, a
-            // sideBSpawn left at default (0,0,0) rotation puts the client at
-            // (0,0,+1.8) looking +Z — i.e. away from the table — and the
-            // host-served ball renders behind the client's head, invisible.
-            Vector3 toCenter = -mySpawn.position;
+Vector3 toCenter = -mySpawn.position;
             toCenter.y = 0f;
             if (toCenter.sqrMagnitude > 0.0001f)
                 _play.vr_camera.transform.rotation = Quaternion.LookRotation(toCenter, Vector3.up);
@@ -224,16 +191,10 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
             Debug.Log($"[Net] Bridge activated, remote={remote}");
         }
 
-        // Switch the ball pool to multiplayer mode on EVERY peer. This hides the
-        // local-only scene ball + any clones Play.Start may have made before
-        // is_multiplayer flipped, so the pool only ever holds Runner.Spawn'd balls.
-        if (_play != null && _play.balls != null)
+if (_play != null && _play.balls != null)
             _play.balls.enter_multiplayer();
 
-        // HOST: pre-spawn enough networked balls for the rally rotation. Each
-        // Runner.Spawn replicates to the client and fires register_remote_ball
-        // there, populating both pools symmetrically.
-        if (runner.IsServer && _play != null && _play.balls != null)
+if (runner.IsServer && _play != null && _play.balls != null)
         {
             if (_play.balls.network_ball_prefab == null)
             {
@@ -245,12 +206,10 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
             {
                 _play.balls.prespawn_networked_balls(_play.balls.ball_count);
 
-                // Spawn the power-up block(s) once, host-side.
-                if (_powerUpSpawner != null)
+if (_powerUpSpawner != null)
                     _powerUpSpawner.SpawnIfHost(runner);
 
-                // Hand the host the first networked ball to begin serving.
-                Ball first = _play.balls.new_ball();
+Ball first = _play.balls.new_ball();
                 if (first != null)
                 {
                     _play.ball_in_play = first;
@@ -279,8 +238,7 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
         if (_lobbyPanel) _lobbyPanel.SetActive(true);
     }
 
-    // Required interface stubs (no-op)
-    public void OnInput(NetworkRunner runner, NetworkInput input) { }
+public void OnInput(NetworkRunner runner, NetworkInput input) { }
     public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
     public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
     public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
@@ -291,10 +249,8 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
     public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ArraySegment<byte> data) { }
     public void OnSceneLoadDone(NetworkRunner runner)
     {
-        // A scene reload (e.g. from a future SceneManager) recreates the OVR camera rig,
-        // resetting clearFlags and backgroundColor to their serialized defaults.
-        // Re-applying the passthrough toggle restores the correct camera state.
-        var settings = FindObjectOfType<SettingsUI>();
+
+var settings = FindObjectOfType<SettingsUI>();
         if (settings == null) return;
         var play = FindObjectOfType<Play>();
         if (play != null)

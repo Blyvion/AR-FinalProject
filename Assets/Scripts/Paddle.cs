@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -27,8 +27,7 @@ public class Paddle : MonoBehaviour {
 	transform.position = position;
 	transform.rotation = rotation;
 
-	// Set paddle surface velocities used in bounce calculations done in Balls.LateUpdate().
-	foreach (Bouncer bc in gameObject.GetComponentsInChildren<Bouncer> ())
+foreach (Bouncer bc in gameObject.GetComponentsInChildren<Bouncer> ())
 	    bc.move_wall (velocity, angular_velocity);
     }
 
@@ -37,8 +36,7 @@ public class Paddle : MonoBehaviour {
 	get { return blade.transform.localScale.x; }
     }
 
-    // Center of paddle to surface of forehand rubber times 2.
-    public float thickness
+public float thickness
     {
 	get
 	{

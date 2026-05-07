@@ -1,13 +1,13 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
-using System.IO;     // Use File
-using System;         // Use Serializable
+using System.IO;
+using System;
 using UnityEngine;
 
 public class Serves : MonoBehaviour {
     public List<Serve> serves = new List<Serve>();
     int random_serve_max;
-    bool serves_changed;    // Whether serves should be saved.
+    bool serves_changed;
     
     void Awake() {
         if (!load_serves())
@@ -17,8 +17,8 @@ public class Serves : MonoBehaviour {
 
     void add_fixed_serves() {
         List<Serve> s = serves;
-        Vector3 fhtp = new Vector3 (-0.5f, 0.8f, 2f); // Toss from forehand side.
-        Vector3 bhtp = new Vector3 (0.5f, 0.8f, 2f); // Toss from backhand side.
+        Vector3 fhtp = new Vector3 (-0.5f, 0.8f, 2f);
+        Vector3 bhtp = new Vector3 (0.5f, 0.8f, 2f);
         Vector3 tv = new Vector3 (0, 4, 0);
         float r = 0.02f;
         float volley_height = 0.8f;

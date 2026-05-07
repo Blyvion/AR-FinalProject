@@ -8,9 +8,8 @@ public class SlowBallEffect : PowerUpEffect
 
     public override void Apply(NetworkedBall ball)
     {
-        // Pass durationSeconds through so the ball arms an auto-revert timer;
-        // when it expires the ball restores SpeedMultiplier to 1 on the host.
-        ball.SetSpeedMultiplier(speedMultiplier, durationSeconds);
+
+ball.SetSpeedMultiplier(speedMultiplier, durationSeconds);
     }
 
     public override void Revert(NetworkedBall ball) => ball.SetSpeedMultiplier(1f);

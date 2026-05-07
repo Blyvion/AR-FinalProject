@@ -1,14 +1,13 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Warning : MonoBehaviour {
 	public TextMesh poster;
 	float clear_time = 0f;
-	float clear_delay = 5f;  // Seconds before warning message cleared.
+	float clear_delay = 5f;
 
-	// Update is called once per frame
-	void Update () {
+void Update () {
 		if (clear_time > 0 && Time.time >= clear_time) {
 			clear_time = 0;
 			poster.text = "";

@@ -1,10 +1,8 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "BigBallEffect", menuName = "PowerUps/Big Ball")]
-public class BigBallEffect : PowerUpEffect
+[CreateAssetMenu(fileName = "GlowBallEffect", menuName = "PowerUps/Glow Ball")]
+public class GlowBallEffect : PowerUpEffect
 {
-    public float sizeMultiplier = 10f;
-
-    public override void Apply(NetworkedBall ball)  => ball.SetSizeMultiplier(sizeMultiplier);
-    public override void Revert(NetworkedBall ball) => ball.SetSizeMultiplier(1f);
+    public override void Apply(NetworkedBall ball)  => ball.SetGlowEnabled(true);
+    public override void Revert(NetworkedBall ball) => ball.SetGlowEnabled(false);
 }

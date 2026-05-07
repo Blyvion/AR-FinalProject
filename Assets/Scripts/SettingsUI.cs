@@ -1,18 +1,17 @@
-﻿
+
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;     // Use File
-using System;        // Use Serializable
+using System.IO;
+using System;
 using UnityEngine;
-using UnityEngine.InputSystem;		// Use PlayerInput
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class SettingsUI : MonoBehaviour
 {
     public Buttons buttons;
 
-    // Setting panels
-    public GameObject ui_panels;
+public GameObject ui_panels;
     public GameObject general_settings, serve_settings, rally_settings, cues_settings;
 
     public Button show_general_settings;
@@ -24,8 +23,7 @@ public class SettingsUI : MonoBehaviour
 
     public Play play;
 
-    // General settings:
-    public Toggle show_room;
+public Toggle show_room;
     
     public Toggle righthanded, lefthanded;
     public Toggle shakehands, penholder, customgrip;
@@ -42,24 +40,21 @@ public class SettingsUI : MonoBehaviour
     public Button host;
     public NetworkConnectionManager network_manager;
 
-    // Serve settings
-    public Toggle auto_serve, repeat_serve;
+public Toggle auto_serve, repeat_serve;
     public Toggle serve_short, serve_medium, serve_long, serve_longest;
     public Toggle serve_topspin, serve_backspin, serve_nospin;
     public Toggle serve_to_forehand, serve_to_backhand, serve_to_middle;
     public Toggle serve_low, serve_medium_high, serve_high;
     public Button remove_serve;
     public Text serves_matching;
-    
-    // Rally settings
-    public Toggle spin_top, spin_back, spin_none, spin_back1top, spin_varied, spin_varied_back, spin_topback;
+
+public Toggle spin_top, spin_back, spin_none, spin_back1top, spin_varied, spin_varied_back, spin_topback;
     public Toggle place_forehand, place_backhand, place_random_forehand, place_random, place_diagonal, place_down_line, place_elbow, place_no_return;
     public Toggle loop, smash, drop, chop, block;
     public Toggle move_slow, move_medium, move_fast, move_unlimited;
     public Toggle rally_slow, rally_medium, rally_fast;
 
-    // Visual Cues settings
-    public Toggle hit_arrows;
+public Toggle hit_arrows;
     public GameObject arrows;
     public Toggle show_paddle_marker, show_net_marker, show_table_marker;
     public Toggle show_paddle_tracks, show_ball_tracks;
@@ -67,14 +62,12 @@ public class SettingsUI : MonoBehaviour
 
     void Start()
     {
-        // Show table top control panels when buttons on edge
-        // of table pressed.
-        bind_show_hide_buttons();
+
+bind_show_hide_buttons();
 	bind_save_button();
 	bind_network_buttons();
 
-        // Buttons change settings as soon as they are clicked.
-        bind_grip_buttons();
+bind_grip_buttons();
 	bind_show_room_button();
 	bind_move_table_button();
 	bind_hide_table_button();
@@ -307,16 +300,7 @@ public class SettingsUI : MonoBehaviour
         play.free_hand.set_hand_wand (fw);
 	Debug.Log("Left " + play.left_wand.device_index() + " right " + play.right_wand.device_index()
 		  + " tracker " + play.tracker_wand.device_index());
-	/*
-	var system = Valve.VR.OpenVR.System;
-	Debug.Log("Actual left " +
-		  system.GetTrackedDeviceIndexForControllerRole(ETrackedControllerRole.LeftHand) +
-		  " right " +
- 		  system.GetTrackedDeviceIndexForControllerRole(ETrackedControllerRole.RightHand)
-//		  + " tracker " +
-//		  system.GetTrackedDeviceIndexForControllerRole(ETrackedControllerRole.RightFoot)
-		  );
-	*/
+	
     }
 
     void set_robot_speed(string speed)
@@ -380,9 +364,9 @@ public class SettingsUI : MonoBehaviour
             float depth = -s.bounce.z;
             float side = s.bounce.x;
             Vector3 vside = Vector3.Cross(s.ball_velocity, Vector3.up).normalized;
-            float r = 0.02f;    // ball radius
+            float r = 0.02f;
             float spin = -Vector3.Dot(s.ball_angular_velocity, vside) * r;
-            float height = s.top.y - 0.762f;    // height from table
+            float height = s.top.y - 0.762f;
             bool include = (
                 ((sshort && s.double_bounce)
                  || (smedium && (!s.double_bounce && depth <= 0.9f))

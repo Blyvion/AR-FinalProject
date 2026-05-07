@@ -1,16 +1,6 @@
 using Fusion;
 using UnityEngine;
 
-// Drop one of these in the scene (e.g. on the GameManager). Wire the
-// power-up NetworkObject prefab variants and an anchor in the Inspector,
-// then call SpawnIfHost(runner) once after the multiplayer session is
-// fully active. NetworkConnectionManager.ActivateMultiplayerLocal does this.
-//
-// Lifecycle: SpawnIfHost performs the FIRST random spawn. Each consumed
-// power-up Runner.Despawns itself ~0.3s after pickup (handled by
-// NetworkPowerUp). This component watches the current handle; when it goes
-// invalid, it waits _respawnDelaySeconds and rolls a fresh random variant.
-// So every respawn is an independent dice roll across _variants.
 public class PowerUpSpawner : MonoBehaviour
 {
     [SerializeField] NetworkObject _powerUpPrefab;
@@ -43,11 +33,7 @@ public class PowerUpSpawner : MonoBehaviour
     {
         if (_runner == null || !_runner.IsServer) return;
 
-        // Track despawn → respawn cycle. Object.IsValid flips false the moment
-        // Runner.Despawn is called, so we record the transition and start the
-        // delay countdown. After the delay, SpawnNow() picks a fresh random
-        // variant.
-        bool alive = _current != null && _current.IsValid;
+bool alive = _current != null && _current.IsValid;
         if (alive)
         {
             _despawnedAt = -1f;

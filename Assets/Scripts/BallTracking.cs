@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -79,7 +79,7 @@ public class BallTrack {
 	}
 
 	public BallState table_crossing() {
-	       // Find place where ball descends below table height.
+
 	        if (double_bounce)
 	       	   return final[final.Count - 1];
 		   

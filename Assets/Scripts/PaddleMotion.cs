@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -37,9 +37,9 @@ public class PaddleMotion {
 		if (time >= start_time && time <= end_time) {	
 			float f = (time - start_time) / (end_time - start_time);
 			f = Mathf.Min(f, 1);
-			// TODO: Interpolate elbow position and rotation about elbow.
+
 			float pi2 = 2*Mathf.PI;
-			float mf = f - Mathf.Sin(f*pi2) / pi2;  // angle factor
+			float mf = f - Mathf.Sin(f*pi2) / pi2;
 			Vector3 p = Vector3.Lerp (start_position, end_position, mf);
 			Quaternion rp = Quaternion.Slerp (start_rotation, end_rotation, mf);
 			float vf = 1.0f - Mathf.Cos(f*pi2);
@@ -50,9 +50,8 @@ public class PaddleMotion {
 	}
 
 	public float acceleration() {
-		// Peak acceleration for linear distance and time interval
-		// with sine acceleration and intial and final speed equal to zero.
-		float d = (end_position - start_position).magnitude;
+
+float d = (end_position - start_position).magnitude;
 		float t = end_time - start_time;
 		float a = (t > 0 ? 2 * Mathf.PI * d / (t * t) : 0);
 		return a;

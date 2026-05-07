@@ -7,10 +7,8 @@ public class PathTracer : MonoBehaviour {
     List<TracePoint> player_paddle_track = new List<TracePoint>();
     List<TracePoint> ball_track = new List<TracePoint>();
 
-    // Track is divided into segments.
-    // Segment dividers given by indices into track lists.
-    List<int> segments = new List<int>();
-    int segment = -1;  // Current segment shown
+List<int> segments = new List<int>();
+    int segment = -1;
     
     public GameObject paddle_template;
     public GameObject ball_template;
@@ -18,24 +16,12 @@ public class PathTracer : MonoBehaviour {
     bool tracking = false;
 
     float spin_bands_per_turn = 20;
-    float spin_band_width = 0.01f;	// meters
-    float spin_band_radius = 0.02f;	// meters
-    float full_turn_spin = 5f;		// meters/second
-    float spiral_out_per_turn = 0.4f;	// fraction of initial radius
+    float spin_band_width = 0.01f;
+    float spin_band_radius = 0.02f;
+    float full_turn_spin = 5f;
+    float spiral_out_per_turn = 0.4f;
 
-    /*
-    float spin_band_width = 0.1f;	// meters
-    float spin_band_radius = 0.2f;	// meters
-    */
-    
-    /*
-    float start_track_speed = 2.0f;
-    float end_track_speed = 1.0f;
-    float start_angular_speed = 100.0f;
-    float end_angular_speed = 50.0f;
-    */
-
-    public void clear_tracking() {
+public void clear_tracking() {
 	player_paddle_track.Clear();
 	ball_track.Clear();
 	segments.Clear();
@@ -147,16 +133,8 @@ public class PathTracer : MonoBehaviour {
 	CombineInstance [] iarray = instances.ToArray();
 	Mesh mesh = GetComponent<MeshFilter>().mesh;
 	mesh.CombineMeshes(iarray);
-	//
-	// Caution.  If combined mesh is more than 64K triangles then the rendering
-	// is incorrect joining the wrong vertices.
-	//
 
-	/*
-	for (int p = 0 ; p < positions.Count ; ++p)
-	    Debug.Log("Accel " + p + " " + accel[p] + " mag " + accel[p].magnitude);
-	*/
-    }
+}
 
     List<TracePoint> paddle_close_to_ball(List<TracePoint> ptrack,
 					  List<TracePoint> btrack) {
@@ -178,7 +156,7 @@ public class PathTracer : MonoBehaviour {
 		track.Add(ptrack[t]);
 		
 	}
-//	track.Add(ptrack[tmin]);
+
 	return track;
     }
 
@@ -203,11 +181,8 @@ public class PathTracer : MonoBehaviour {
     }
 
     List<TracePoint> spin_points(List<TracePoint> btrack) {
-	// Choose ball points half way between points where
-	// spin changes.  Using ball points right after spin
-	// changes puts spin indicator right next to bounce
-	// surface which is hard to see.
-	List<TracePoint> track = new List<TracePoint>();
+
+List<TracePoint> track = new List<TracePoint>();
 	Vector3 prev_angular_velocity = new Vector3(0,0,0);
 	int prev_p = 0;
 	for (int p = 0 ; p < btrack.Count ; ++p)
@@ -246,8 +221,7 @@ public class PathTracer : MonoBehaviour {
 	if (div == 0)
 	    div = 1;
 
-	// Need front and backfacinging triangles since Unity culls back facing.
-	int nv = 4 * (div + 1);
+int nv = 4 * (div + 1);
 	int bv = nv/2;
 	int nt = 4 * div;
 	Vector3 [] vertices = new Vector3[nv];
@@ -266,20 +240,19 @@ public class PathTracer : MonoBehaviour {
 	    float w = (v < div-1 ? w2 : (v == div ? 0 : 2*w2));
 	    v0.z = -w;
 	    v1.z = w;
-	    
-	    // Backfacing.
-	    vertices[v + bv] = v0;
+
+vertices[v + bv] = v0;
 	    vertices[v+div+1 + bv] = v1;
 	}
 
 	for (int t = 0 ; t < div ; ++t)
 	{
-	    // 4 triangles per band.
+
 	    int b = 12*t;
 	    int v0 = t, v1 = t+1, v2 = t+div+1, v3 = t+1+div+1;
 	    triangles[b] = v0; triangles[b+1] = v1; triangles[b+2] = v3;
 	    triangles[b+3] = v0; triangles[b+4] = v3; triangles[b+5] = v2;
-	    // Backfacing.
+
 	    triangles[b+6] = bv+v0; triangles[b+7] = bv+v3; triangles[b+8] = bv+v1;
 	    triangles[b+9] = bv+v0; triangles[b+10] = bv+v2; triangles[b+11] = bv+v3;
 	}

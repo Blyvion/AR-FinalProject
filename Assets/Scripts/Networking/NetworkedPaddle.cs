@@ -1,32 +1,6 @@
 using Fusion;
 using UnityEngine;
 
-/// <summary>
-/// Add to the Player Avatar prefab's paddle root alongside NetworkObject.
-///
-/// ── How it works ─────────────────────────────────────────────────────────────
-/// The player with InputAuthority (the owner) reads their local Paddle.cs
-/// position/rotation from Hand.cs (unchanged) and publishes it via [Networked]
-/// properties every Fusion tick.
-///
-/// All other clients receive those properties and:
-///   1. Move the paddle's Transform so the remote paddle is visible.
-///   2. Call Bouncer.move_wall() on all child Bouncers so that when the
-///      State Authority runs Balls.move_balls() it sees the remote paddle at
-///      the correct world position for accurate physics hit detection.
-///
-/// ── Hierarchy expected ───────────────────────────────────────────────────────
-///   PlayerAvatar (NetworkObject + NetworkedPaddle)
-///     └── PaddleRoot (Paddle.cs)
-///           ├── Bouncer — rubber forehand   (z_bottom = true)
-///           └── Bouncer — rubber backhand
-///
-/// ── Fusion Inspector Settings (on the PlayerAvatar NetworkObject) ────────────
-/// • Object Type: Prefab
-/// • Default Update Flags: FixedUpdateNetwork, Render
-/// • Input Authority Behaviour: Proxy
-/// ─────────────────────────────────────────────────────────────────────────────
-/// </summary>
 public class NetworkedPaddle : NetworkBehaviour
 {
     [Header("Scene References")]
@@ -35,35 +9,24 @@ public class NetworkedPaddle : NetworkBehaviour
     [Tooltip("Optional: visual mesh hidden for the owning player (they see their real hand).")]
     [SerializeField] private GameObject _paddleVisualRoot;
 
-    // ─── Networked State ─────────────────────────────────────────────────────
-    //
-    [Networked] private Vector3    _netPos    { get; set; }
+[Networked] private Vector3    _netPos    { get; set; }
     [Networked] private Quaternion _netRot    { get; set; }
     [Networked] private Vector3    _netVel    { get; set; }
     [Networked] private Vector3    _netAngVel { get; set; }
 
-    // ─── Local State ─────────────────────────────────────────────────────────
-
-    private Bouncer[]  _bouncers;
+private Bouncer[]  _bouncers;
     private Vector3    _lastPos;
     private Quaternion _lastRot;
-    // Dead-zone throttle counter for the client→host RPC path (see FixedUpdateNetwork).
+
     private int        _rpcThrottleTick;
 
-    // ─── Lifecycle ───────────────────────────────────────────────────────────
-
-    // The prefab Paddle child — used for visuals on REMOTE peers. We capture this
-    // before _localPaddle is re-bound to the scene's held_paddle on the owner.
-    private Paddle _prefabPaddle;
+private Paddle _prefabPaddle;
 
     public override void Spawned()
     {
         _bouncers = GetComponentsInChildren<Bouncer>();
 
-        // Defensive: if the inspector reference wasn't wired on the prefab, find the
-        // prefab's child Paddle automatically. Without this, Render() silently
-        // returns and the remote paddle never moves.
-        if (_localPaddle == null)
+if (_localPaddle == null)
             _localPaddle = GetComponentInChildren<Paddle>(includeInactive: true);
 
         _prefabPaddle = _localPaddle;
@@ -101,9 +64,7 @@ public class NetworkedPaddle : NetworkBehaviour
         }
     }
 
-    // ─── FixedUpdateNetwork — publish local paddle state ────────────────────
-
-    public override void FixedUpdateNetwork()
+public override void FixedUpdateNetwork()
     {
         if (!Object.HasInputAuthority || _localPaddle == null) return;
 
@@ -121,21 +82,14 @@ public class NetworkedPaddle : NetworkBehaviour
 
         if (Object.HasStateAuthority)
         {
-            // Host's own avatar: write directly.
+
             _netPos = newPos; _netRot = newRot; _netVel = vel; _netAngVel = angVel;
         }
         else
         {
-            // Client's avatar: only the host (StateAuthority) can write [Networked]
-            // properties in host/client mode. Send the pose to the host via RPC and
-            // let it write to the networked state on our behalf.
-            //
-            // Dead-zone + heartbeat: suppress the RPC when the paddle hasn't moved
-            // meaningfully. At 128 Hz this can eliminate ~100+ redundant packets/sec
-            // during breaks between rallies while still converging to the rest pose
-            // via a heartbeat every 64 ticks (~500 ms).
-            bool paddleMoved = (newPos - _lastPos).sqrMagnitude > 1e-6f   // > 1 mm
-                            || Quaternion.Angle(newRot, _lastRot) > 0.1f; // > 0.1°
+
+bool paddleMoved = (newPos - _lastPos).sqrMagnitude > 1e-6f
+                            || Quaternion.Angle(newRot, _lastRot) > 0.1f;
             _rpcThrottleTick++;
             if (paddleMoved || _rpcThrottleTick >= 64)
             {
@@ -157,46 +111,32 @@ public class NetworkedPaddle : NetworkBehaviour
         _netAngVel = angVel;
     }
 
-    // ─── Render — apply remote paddle to scene ───────────────────────────────
-
-    public override void Render()
+public override void Render()
     {
         if (Object.HasInputAuthority || _prefabPaddle == null) return;
 
-        // Drive the prefab Paddle child's WORLD transform — not the avatar root.
-        // The Paddle child has a non-zero localPosition/Rotation in the prefab,
-        // so writing to the root displaces the visible paddle (and its bouncer
-        // children) by that offset, putting them off-screen.
-        Transform t = _prefabPaddle.transform;
+Transform t = _prefabPaddle.transform;
 
-        // Extrapolate the remote position by ~1.5 server ticks to compensate for
-        // the round-trip delay between the client sending and us receiving it.
-        // At 128 Hz a tick is ~7.8 ms, so 1.5 ticks ≈ 12 ms of lead time.
-        float extrap = Runner.DeltaTime * 1.5f;
+float extrap = Runner.DeltaTime * 1.5f;
         Vector3    targetPos = _netPos + _netVel * extrap;
-        Quaternion targetRot = _netRot;   // rotation extrapolation is skipped to avoid drift
+        Quaternion targetRot = _netRot;
 
         float posError = Vector3.Distance(t.position, targetPos);
         if (posError > 0.4f)
         {
-            // Hard-snap on large errors (teleport / first frame) rather than
-            // lerping across half the table which looks terrible.
-            t.position = targetPos;
+
+t.position = targetPos;
             t.rotation = targetRot;
         }
         else
         {
-            // Lerp at 80 × dt — at 120 Hz that is 0.67 per frame (≈ 3 frames
-            // to cover 95 % of the gap), which feels instant for a fast paddle
-            // without introducing visible jitter.
-            float blend = Time.deltaTime * 80f;
+
+float blend = Time.deltaTime * 80f;
             t.position = Vector3.Lerp(t.position, targetPos, blend);
             t.rotation = Quaternion.Slerp(t.rotation, targetRot, blend);
         }
 
-        // Keep every Bouncer's wall_state current so the physics simulation
-        // can detect a collision with the remote paddle correctly.
-        foreach (Bouncer b in _bouncers)
+foreach (Bouncer b in _bouncers)
             b.move_wall(_netVel, _netAngVel);
     }
 }
