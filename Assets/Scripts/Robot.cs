@@ -487,7 +487,12 @@ public class Robot : MonoBehaviour {
             }
         }
 
-        time_now += delta_t;
+        // Scale time accumulation by kGlobalSpeedScale so stroke start/end times
+        // (which come from BallState.time, also scaled) remain in sync with the
+        // robot's clock. Without this the robot swings at the correct physics-time
+        // position but too early in real time, missing every half-speed ball.
+        // To revert: remove Ball.kGlobalSpeedScale and use plain delta_t.
+        time_now += delta_t * Ball.kGlobalSpeedScale;
 
         if (motions.Count == 0)
             return;

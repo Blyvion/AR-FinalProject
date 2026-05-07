@@ -154,9 +154,14 @@ public class BallTracking : MonoBehaviour {
 
 	string flight_to_bounce (Ball b, ref BallState s, ref List<BallState> path) {
 		int max_time_steps = 1000;
-		for (int i = 0; i < max_time_steps; ++i) {			
+		for (int i = 0; i < max_time_steps; ++i) {
 			path.Add (s);
-			BallState s2 = b.ball_time_step (s, time_step);
+			// Scale prediction step by kGlobalSpeedScale so predicted BallState
+			// positions and times stay consistent with the actual ball simulation
+			// in Ball.move_ball(). Without this, the robot plans swings for a
+			// full-speed ball and consistently mis-times hits on the half-speed ball.
+			// To revert: remove the Ball.kGlobalSpeedScale factor.
+			BallState s2 = b.ball_time_step(s, time_step * Ball.kGlobalSpeedScale);
 			foreach (Bouncer bn in bouncers) {
 				Rebound rb = bn.check_for_bounce (s, s2, b.radius, b.inertia_coef);
 				if (rb != null) {

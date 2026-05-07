@@ -278,17 +278,22 @@ public class NetworkedBall : NetworkBehaviour
         // inside Render can return drift-between-ticks on this prefab's settings
         // (Interpolation Data: None, Simulation Only) — cache locally instead.
         Vector3 netPos = _netPos;
-        Vector3 netVel = _netVel;
+        // NOTE: _netVel is intentionally unused below while interpolation is disabled.
 
-        // Velocity-extrapolate by half a tick so the proxy doesn't visibly trail
-        // behind the authority by the network round-trip + tick interval.
-        Vector3 target = netPos + netVel * (Runner.DeltaTime * 0.5f);
-
-        float dist = Vector3.Distance(transform.position, target);
-
-        transform.position = (dist > _snapThreshold)
-            ? target
-            : Vector3.Lerp(transform.position, target, Time.deltaTime * _proxyCorrectSpeed);
+        // ── INTERPOLATION DISABLED ────────────────────────────────────────────
+        // Snap directly to the last authoritative position.  No velocity
+        // extrapolation, no lerp, no snap-threshold logic.
+        //
+        // To RE-ENABLE interpolation, replace the single assignment below with:
+        //   Vector3 netVel = _netVel;
+        //   Vector3 target = netPos + netVel * (Runner.DeltaTime * 0.5f);
+        //   float dist = Vector3.Distance(transform.position, target);
+        //   transform.position = (dist > _snapThreshold)
+        //       ? target
+        //       : Vector3.Lerp(transform.position, target,
+        //                      Time.deltaTime * _proxyCorrectSpeed);
+        // ─────────────────────────────────────────────────────────────────────
+        transform.position = netPos;
 
         float angDeg = Mathf.Rad2Deg * _netAngVel.magnitude * Time.deltaTime;
         if (angDeg > 0.01f)
@@ -297,7 +302,7 @@ public class NetworkedBall : NetworkBehaviour
         if ((_renderTickCount++ % 90) == 0) {
             var rend = GetComponentInChildren<Renderer>();
             Debug.Log($"[NetBall] PROXY Render id={Object.Id} netPos={netPos} " +
-                      $"netVel={netVel} target={target} transform.pos={transform.position} " +
+                      $"transform.pos={transform.position} " +
                       $"active={gameObject.activeSelf} " +
                       $"rendererEnabled={(rend != null ? rend.enabled.ToString() : "NULL")}");
         }

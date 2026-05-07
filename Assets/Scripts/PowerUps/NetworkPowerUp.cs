@@ -36,9 +36,14 @@ public class NetworkPowerUp : NetworkBehaviour
 
     // Networked state. ChangeDetector below maps property changes to local
     // visual reactions on every peer, so VFX stays synchronised without RPCs.
-    [Networked] public PUState   State        { get; set; }
-    [Networked]        TickTimer DespawnTimer { get; set; }
-    [Networked]        int       TriggerSeq   { get; set; }
+    [Networked] public PUState     State        { get; set; }
+    [Networked]        TickTimer   DespawnTimer { get; set; }
+    // OPTIMISATION: was [Networked] int TriggerSeq.
+    // TriggerSeq is only ever written to signal "a trigger just happened" and
+    // read by ChangeDetector — the actual numeric value is never inspected.
+    // NetworkBool achieves the same toggle semantic at 1 bit instead of 32.
+    // To revert: change back to [Networked] int TriggerSeq and use TriggerSeq += 1.
+    [Networked]        NetworkBool TriggerSeq   { get; set; }
 
     // Spawn pose. Runner.Spawn(prefab, pos, rot, …) only applies pos/rot on
     // the authority's local transform; without NetworkTransform on the prefab
@@ -141,7 +146,7 @@ public class NetworkPowerUp : NetworkBehaviour
     void Trigger(NetworkedBall nb)
     {
         State        = PUState.Consumed;
-        TriggerSeq  += 1;
+        TriggerSeq   = !(bool)TriggerSeq;  // toggle — ChangeDetector fires on any value change
         DespawnTimer = TickTimer.CreateFromSeconds(Runner, Mathf.Max(_despawnDelaySeconds, 0.05f));
 
         if (_effect != null) _effect.Apply(nb);

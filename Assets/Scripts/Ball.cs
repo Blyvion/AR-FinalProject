@@ -1,8 +1,16 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Ball : MonoBehaviour {
+
+	// ── Global speed scale ────────────────────────────────────────────────
+	// Multiplies the physics time step in move_ball(). 0.5 = half speed.
+	// Change this single constant to adjust ball speed for the whole game.
+	// To restore original speed: set kGlobalSpeedScale = 1.0f.
+	// NOTE: BallTracking.flight_to_bounce() and Robot.move_paddle() also
+	// read this constant — all three must stay in sync (they do by reference).
+	public const float kGlobalSpeedScale = 0.75f;
 
 	public BallState motion;
 	public Vector3 gravity = new Vector3(0f, -9.8f, 0f);
@@ -53,7 +61,9 @@ public class Ball : MonoBehaviour {
 			freeze = true;
 			return null;
 		}
-		BallState bs = ball_time_step (motion, delta_t * speed_multiplier);
+		// kGlobalSpeedScale halves the physics time step → ball moves at half speed.
+		// speed_multiplier is the power-up layer (SlowBall sets it to 0.1).
+		BallState bs = ball_time_step(motion, delta_t * speed_multiplier * kGlobalSpeedScale);
 		return bs;
 	}
 

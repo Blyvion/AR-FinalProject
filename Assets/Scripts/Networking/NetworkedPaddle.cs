@@ -45,8 +45,24 @@ public class NetworkedPaddle : NetworkBehaviour
     // ─── Local State ─────────────────────────────────────────────────────────
 
     private Bouncer[]  _bouncers;
-    private Vector3    _lastPos;
-    private Quaternion _lastRot;
+    private Vector3    _lastPos;          // previous-tick position  — used for velocity computation
+    private Quaternion _lastRot;          // previous-tick rotation  — used for angular-velocity computation
+
+    // ── RPC send-throttle (client InputAuthority only) ────────────────────
+    // RPC_PublishPaddle was previously called unconditionally every tick
+    // (~60 Hz × 52 bytes = ~3 KB/s) even when the paddle was not moving.
+    // These constants + fields gate the RPC to fire only when the pose has
+    // meaningfully changed, or when the force-send heartbeat is due.
+    //
+    // To DISABLE throttling (restore original behaviour): remove the
+    // _ticksSinceLastSend / _lastSentPos / _lastSentRot logic and call
+    // RPC_PublishPaddle(newPos, newRot, vel, angVel) unconditionally.
+    private const float kSendPosThresholdSq  = 0.001f * 0.001f; // 1 mm² — skip if position barely moved
+    private const float kSendRotThresholdDeg = 0.5f;             // 0.5° — skip if rotation barely changed
+    private const int   kForceEveryTicks     = 6;                // force a send every ~100 ms at 60 Hz
+    private Vector3    _lastSentPos;
+    private Quaternion _lastSentRot = Quaternion.identity;
+    private int        _ticksSinceLastSend;
 
     // ─── Lifecycle ───────────────────────────────────────────────────────────
 
@@ -83,6 +99,10 @@ public class NetworkedPaddle : NetworkBehaviour
             {
                 _lastPos = _localPaddle.transform.position;
                 _lastRot = _localPaddle.transform.rotation;
+                // Seed the sent-tracking to current pose so the first tick
+                // doesn't trigger a spurious send due to a zero-vs-real delta.
+                _lastSentPos = _lastPos;
+                _lastSentRot = _lastRot;
             }
             Debug.Log($"[NetPaddle] OWNER bound to scene paddle={(_localPaddle != null ? _localPaddle.name : "NULL")}");
         }
@@ -127,7 +147,23 @@ public class NetworkedPaddle : NetworkBehaviour
             // Client's avatar: only the host (StateAuthority) can write [Networked]
             // properties in host/client mode. Send the pose to the host via RPC and
             // let it write to the networked state on our behalf.
-            RPC_PublishPaddle(newPos, newRot, vel, angVel);
+            //
+            // OPTIMISATION: gate the RPC on meaningful pose change + heartbeat.
+            // During serving / idle the paddle barely moves → skip most sends.
+            // During active rallying the paddle moves every tick → sends every tick.
+            // The kForceEveryTicks heartbeat prevents stale state if the paddle
+            // stops moving right after a small sub-threshold drift.
+            _ticksSinceLastSend++;
+            bool posChanged = (newPos - _lastSentPos).sqrMagnitude > kSendPosThresholdSq;
+            bool rotChanged = Quaternion.Angle(_lastSentRot, newRot) > kSendRotThresholdDeg;
+
+            if (posChanged || rotChanged || _ticksSinceLastSend >= kForceEveryTicks)
+            {
+                RPC_PublishPaddle(newPos, newRot, vel, angVel);
+                _lastSentPos = newPos;
+                _lastSentRot = newRot;
+                _ticksSinceLastSend = 0;
+            }
         }
 
         _lastPos = newPos;
@@ -154,8 +190,16 @@ public class NetworkedPaddle : NetworkBehaviour
         // so writing to the root displaces the visible paddle (and its bouncer
         // children) by that offset, putting them off-screen.
         Transform t = _prefabPaddle.transform;
-        t.position = Vector3.Lerp(t.position, _netPos, Time.deltaTime * 60f);
-        t.rotation = Quaternion.Slerp(t.rotation, _netRot, Time.deltaTime * 60f);
+
+        // ── INTERPOLATION DISABLED ────────────────────────────────────────────
+        // Snap directly to the last authoritative position/rotation.
+        //
+        // To RE-ENABLE interpolation, replace the two assignments below with:
+        //   t.position = Vector3.Lerp(t.position, _netPos, Time.deltaTime * 60f);
+        //   t.rotation = Quaternion.Slerp(t.rotation, _netRot, Time.deltaTime * 60f);
+        // ─────────────────────────────────────────────────────────────────────
+        t.position = _netPos;
+        t.rotation = _netRot;
 
         // Keep every Bouncer's wall_state current so the physics simulation
         // can detect a collision with the remote paddle correctly.
