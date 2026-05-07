@@ -16,13 +16,14 @@ public class Play : MonoBehaviour {
     public Ball ball_in_play;
     public BallTracking ball_tracking;
     PlayState play_state, player_to_serve, robot_to_serve;
-    public TextMesh billboard;
+    public NeonScoreUI score_display;
     public List<Bouncer> marked_surfaces;
     public bool playing_game = false;
     int score_player = 0, score_robot = 0;
 
     // ── Multiplayer (set at runtime by MultiplayerBridge / PlayerSpawner) ────
     [HideInInspector] public bool is_multiplayer = false;
+    [HideInInspector] public bool is_host = false;  // true when this peer is the Fusion server/host
     /// <summary>
     /// Fired whenever the ball bounces off any surface.
     /// MultiplayerBridge subscribes to this to route Fusion authority calls
@@ -35,6 +36,7 @@ public class Play : MonoBehaviour {
     public OVRPassthroughLayer pass_through_video;
     public Renderer floor;  // Used to hide floor with pass-through video
     public Camera passthrough_camera;   // Used to hide skybox with pass-through video
+    public Material skybox_material;    // Drag StarSkyboxMat here in the Inspector
     public PathTracer path_tracer;
     int track_countdown;
     
@@ -82,6 +84,23 @@ public class Play : MonoBehaviour {
 	// Bouncer.cs have been replaced with Time.deltaTime / dynamic values
 	// so physics stays accurate at any refresh rate.
         Unity.XR.Oculus.Performance.TrySetDisplayRefreshRate(120f);
+
+        // Force skybox mode from the start (passthrough disabled).
+        enable_show_room(false);
+
+        // Start scoring immediately for single player.
+        // In multiplayer this is called again by NetworkConnectionManager
+        // once both players have joined, resetting scores to 0.
+        start_game();
+
+        // Create neon scoreboard above the net if not already wired up in the Inspector.
+        if (score_display == null)
+        {
+            var go = new GameObject("NeonScore");
+            go.transform.position = new Vector3(0f, 1.55f, 0f);
+            go.transform.rotation = Quaternion.Euler(0f, 180f, 0f); // faces the host side
+            score_display = go.AddComponent<NeonScoreUI>();
+        }
 
         hold_ball (free_hand);
     }
@@ -140,6 +159,8 @@ public class Play : MonoBehaviour {
                 play_state = null;
 		if (!is_multiplayer && robot.auto_serve)
 		    robot.serve();
+		else if (is_multiplayer)
+		    StartCoroutine(restart_mp_rally());
             }
         }
         if (bn.tag == "player_paddle") {
@@ -147,8 +168,6 @@ public class Play : MonoBehaviour {
                 paddle_hand.wand.haptic_pulse (haptics_duration, haptics_strength);
             // In multiplayer the bridge handles ball authority; in singleplayer the robot returns.
             Stroke s = (!is_multiplayer) ? return_ball (b) : null;
-            float return_time = (s == null ? 0f : s.contact_time - b.motion.time);
-            report_speeds (b, bn, return_time);
             enable_markers();
             on_ball_hit?.Invoke(b, bn.tag);   // notify networking layer
 //	    report_imu_state();  // Only for SteamVR
@@ -164,6 +183,14 @@ public class Play : MonoBehaviour {
             + " ang vel " + b.motion.angular_velocity);
             */
         }
+    }
+
+    // After a multiplayer point, pause then give the host the next ball to serve.
+    IEnumerator restart_mp_rally() {
+        yield return new WaitForSeconds(2f);
+        if (is_host)
+            hold_ball(free_hand);
+        // Client: host will spawn and replicate the new ball automatically.
     }
 
     Stroke return_ball(Ball b) {
@@ -262,45 +289,22 @@ public class Play : MonoBehaviour {
     }
 
     void report_score() {
-        string nl = System.Environment.NewLine;
-        string msg = "Player " + score_player + " Robot " + score_robot;
+        if (score_display == null) return;
+        string p_label = is_multiplayer ? "YOU"      : "PLAYER";
+        string r_label = is_multiplayer ? "OPP"      : "ROBOT";
+        string status;
         if (score_player >= 11 && score_player >= score_robot + 2) {
-            msg += nl + nl + "You win!!!";
+            status = "YOU WIN!";
             playing_game = false;
         } else if (score_robot >= 11 && score_robot >= score_player + 2) {
-            msg += nl + nl + "Robot wins";
+            status = r_label + " WINS";
             playing_game = false;
         } else {
-            msg += nl + nl + (player_serves() ? "You serve" : "Robot serves");
-            msg += nl + nl + "Game to 11" + (score_player + score_robot >= 20 ? ", win by 2" : "");
+            string serve = player_serves() ? "YOU SERVE" : r_label + " SERVES";
+            string deuce = score_player + score_robot >= 20 ? "  ·  WIN BY 2" : "";
+            status = serve + deuce;
         }
-        billboard.text = msg;
-
-    }
-
-    void report_speeds(Ball b, Bouncer bn_paddle, float tb_time) {
-        string nl = System.Environment.NewLine;
-        Vector3 v = bn_paddle.wall_strike_velocity;  // Paddle velocity.
-        Vector3 n = paddle_hand.held_paddle.forehand_normal();
-        if (bn_paddle.z_top)
-            n = -n; // backhand normal
-        float vf = Vector3.Dot (v, n);
-        float vg = (v - vf * n).magnitude;
-        BallState bs = b.motion;
-        Vector3 s = bs.angular_velocity * b.radius;
-        float ss = -Vector3.Dot (s, Vector3.up);
-        Vector3 vb = bs.velocity;
-        float ts = Vector3.Dot (s, Vector3.Cross (Vector3.up, vb).normalized);
-        float paddle_width = 0.15f;
-        Vector3 vbi = bn_paddle.ball_strike_velocity;
-        float td = (Vector3.Dot (v, n) * vbi - Vector3.Dot (vbi, n) * v).magnitude;
-        float timing = 0.5f * paddle_width * Vector3.Dot (v - vbi, n) / td;
-        billboard.text = ("Paddle speed " + v.magnitude.ToString("F1") + " m/s" + 
-            ", flat " + vf.ToString("F1") + " m/s, graze " + vg.ToString("F1") + " m/s" + nl +
-            "Ball speed " + vb.magnitude.ToString ("F1") + " m/s" + nl +
-            "Ball spin " + s.magnitude.ToString("F1") + " m/s" +
-            ", top " + ts.ToString("F1") + " m/s, side " + ss.ToString("F1") + " m/s" + nl +
-            "Time to top of bounce " + tb_time.ToString("F3") + " sec" + ", timing " + timing.ToString("F3"));
+        score_display.UpdateScore(score_player, score_robot, status, p_label, r_label);
     }
 
     void enable_markers() {
@@ -336,14 +340,20 @@ public class Play : MonoBehaviour {
     
     public void enable_show_room(bool show_room)
     {
-        pass_through_video.enabled = show_room;
-        floor.enabled = !show_room;
+        if (pass_through_video != null) pass_through_video.enabled = false;
+        if (floor != null) floor.enabled = false;  // hide renderer; collider stays active
 
-        var clearColor = new Color(0f, 0f, 0f, 0f);
-        foreach (var cam in vr_camera.GetComponentsInChildren<Camera>(true))
+        // Assign the star skybox material at runtime so it works on-device.
+        if (skybox_material != null)
+            RenderSettings.skybox = skybox_material;
+
+        if (vr_camera != null)
         {
-            cam.clearFlags      = show_room ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox;
-            cam.backgroundColor = clearColor;
+            foreach (var cam in vr_camera.GetComponentsInChildren<Camera>(true))
+            {
+                cam.clearFlags      = CameraClearFlags.Skybox;
+                cam.backgroundColor = new Color(0f, 0f, 0.05f, 1f);
+            }
         }
     }
 }

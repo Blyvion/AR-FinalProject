@@ -183,7 +183,12 @@ public class NetworkConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
     {
         Debug.Log($"[Net] ActivateMultiplayerLocal isServer={runner.IsServer} localPlayer={runner.LocalPlayer}");
         if (_robotRoot != null) _robotRoot.SetActive(false);
-        if (_play     != null) _play.is_multiplayer = true;
+        if (_play     != null)
+        {
+            _play.is_multiplayer = true;
+            _play.is_host        = runner.IsServer;
+            _play.start_game();   // reset scores to 0 and set playing_game = true
+        }
 
         // Move THIS peer's VR rig to its assigned side of the table. Until now the
         // spawn points only positioned the network avatar; the player's real camera
