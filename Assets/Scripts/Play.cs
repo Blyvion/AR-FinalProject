@@ -15,6 +15,7 @@ public class Play : MonoBehaviour {
     public Ball ball_in_play;
     public BallTracking ball_tracking;
     PlayState play_state, player_to_serve, robot_to_serve;
+    Dictionary<string, PlayState> play_states_by_name;
     public NeonScoreUI score_display;
     MeteorManager _meteors;
     public List<Bouncer> marked_surfaces;
@@ -41,6 +42,7 @@ public class Play : MonoBehaviour {
     }
 
     void create_play_states() {
+        play_states_by_name = new Dictionary<string, PlayState>();
         PlayState pts = new PlayState("player to serve");
         PlayState psp = new PlayState("player serve paddle", "player_paddle");
         PlayState pst = new PlayState("player serve table", "table_near");
@@ -66,6 +68,45 @@ public class Play : MonoBehaviour {
         rst.next_state = pt;
         player_to_serve = pts;
         robot_to_serve = rts;
+        register_play_state(pts);
+        register_play_state(psp);
+        register_play_state(pst);
+        register_play_state(rt);
+        register_play_state(rh);
+        register_play_state(pt);
+        register_play_state(ph);
+        register_play_state(rts);
+        register_play_state(rsp);
+        register_play_state(rst);
+        register_play_state(nt);
+    }
+
+    void register_play_state(PlayState state) {
+        if (state == null) return;
+        play_states_by_name[state.name] = state;
+    }
+
+    void set_play_state(PlayState state, bool sync = true) {
+        play_state = state;
+
+        if (!sync || !is_multiplayer)
+            return;
+
+        NetworkedBall nb = ball_in_play != null ? ball_in_play.GetComponent<NetworkedBall>() : null;
+        if (nb == null || nb.Object == null || !nb.Object.IsValid)
+            return;
+
+        nb.RpcSyncPlayState(state != null ? state.name : string.Empty);
+    }
+
+    public void apply_remote_play_state(string state_name) {
+        if (string.IsNullOrEmpty(state_name)) {
+            set_play_state(null, false);
+            return;
+        }
+
+        if (play_states_by_name != null && play_states_by_name.TryGetValue(state_name, out PlayState state))
+            set_play_state(state, false);
     }
     void Awake() {
 
@@ -79,13 +120,8 @@ Unity.XR.Oculus.Performance.TrySetDisplayRefreshRate(120f);
 
 enable_show_room(false);
 
-if (score_display == null)
-        {
-            var go = new GameObject("NeonScore");
-            go.transform.position = new Vector3(0f, 1.55f, 0f);
-            go.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            score_display = go.AddComponent<NeonScoreUI>();
-        }
+if (score_display != null)
+            score_display.gameObject.SetActive(false);
 
 if (_meteors == null)
         {
@@ -107,6 +143,22 @@ robot.move_paddle (delta_t);
 
 float ball_delta_t = is_multiplayer ? delta_t * 0.5f : delta_t;
         balls.move_balls (ball_delta_t);
+
+        // Fallback scoring: ball fell below y=-1 and deactivated without hitting a bouncer.
+        // Only the authority holder (host in multiplayer) acts so scores don't double-fire.
+        if (play_state != null
+            && ball_in_play != null
+            && !ball_in_play.gameObject.activeSelf
+            && (!is_multiplayer || is_host))
+        {
+            keep_score(play_state);
+            set_play_state(null);
+            if (!is_multiplayer && robot.auto_serve)
+                robot.serve();
+            else if (is_multiplayer)
+                StartCoroutine(restart_mp_rally());
+        }
+
 	bool tossed = free_hand.move_held_ball();
 
 	record_tracks(tossed);
@@ -138,7 +190,7 @@ float ball_delta_t = is_multiplayer ? delta_t * 0.5f : delta_t;
             PlayState nps = play_state.next_state;
 	    PlayState onps = play_state.optional_next_state;
             if (bn.tag == nps.bouncer_tag) {
-                play_state = nps;
+                set_play_state(nps);
 
 		if (play_state.name == "robot hit")
 		    path_tracer.add_segment();
@@ -146,7 +198,7 @@ float ball_delta_t = is_multiplayer ? delta_t * 0.5f : delta_t;
                 ;
             } else {
                 keep_score (play_state);
-                play_state = null;
+		set_play_state(null);
 		if (!is_multiplayer && robot.auto_serve)
 		    robot.serve();
 		else if (is_multiplayer)
@@ -212,7 +264,7 @@ nb.SetSizeMultiplier(1f);
         }
         hand.hold_ball (b);
         ball_in_play = b;
-        play_state = player_to_serve;
+        set_play_state(player_to_serve);
         robot.new_rally();
 	path_tracer.clear_tracking();
     }
@@ -226,7 +278,7 @@ nb.SetSizeMultiplier(1f);
             Debug.Log("[Play] start_robot_serve blocked — multiplayer mode");
             return null;
         }
-        play_state = robot_to_serve;
+        set_play_state(robot_to_serve, false);
         Ball ball = balls.new_ball ();
         ball_in_play = ball;
 	record_tracks(true);
@@ -242,24 +294,30 @@ nb.SetSizeMultiplier(1f);
     }
 
     void keep_score(PlayState last_state) {
-        if (playing_game) {
-            string sname = last_state.name;
-            bool player_scored;
-            if (sname.StartsWith ("robot")) {
-                score_player += 1;
-                player_scored = true;
-            } else if (sname != "player to serve") {
-                score_robot += 1;
-                player_scored = false;
-            } else {
-                return;
-            }
-            report_score ();
-            if (is_multiplayer) {
-
-bool host_scored = is_host ? player_scored : !player_scored;
-                on_score_updated?.Invoke(host_scored ? 1 : 0, 0);
-            }
+        if (!playing_game) return;
+        string sname = last_state.name;
+        bool player_scored;
+        if (sname.StartsWith("robot")) {
+            player_scored = true;
+        } else if (sname != "player to serve") {
+            player_scored = false;
+        } else {
+            return;
+        }
+        if (is_multiplayer && !is_host) {
+            // Client detected the score. Send it to the host via RPC so the host
+            // can officially record it and sync both scoreboards through RpcSyncScore.
+            NetworkedBall nb = ball_in_play != null
+                ? ball_in_play.GetComponent<NetworkedBall>() : null;
+            if (nb != null && nb.Object != null && nb.Object.IsValid)
+                nb.RpcClientNotifyScore(player_scored);
+            return;
+        }
+        if (player_scored) score_player += 1;
+        else               score_robot  += 1;
+        report_score();
+        if (is_multiplayer) {
+            on_score_updated?.Invoke(player_scored ? 1 : 0, 0);
         }
     }
 
@@ -270,6 +328,15 @@ if (is_host == host_scored)
         else
             score_robot  += 1;
         report_score();
+    }
+
+    // Called on the HOST when a client-side RPC delivers a score the client detected.
+    public void host_record_score(bool host_scored) {
+        if (!playing_game || !is_host) return;
+        if (host_scored) score_player += 1;
+        else             score_robot  += 1;
+        report_score();
+        on_score_updated?.Invoke(host_scored ? 1 : 0, 0);
     }
 
     public bool player_serves() {

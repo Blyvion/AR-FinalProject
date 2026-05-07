@@ -43,7 +43,6 @@ private void HandleScoreUpdated(int hostScoredInt, int _unused)
 
         NetworkedBall nb = ball.GetComponent<NetworkedBall>();
         if (nb == null || nb.Object == null || !nb.Object.IsValid) return;
-        if (!nb.Object.HasStateAuthority) return;
 
         nb.RpcSyncScore(hostScoredInt == 1);
     }

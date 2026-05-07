@@ -274,10 +274,34 @@ public void ReleaseAuthorityToHost()
             Object.ReleaseStateAuthority();
     }
 
-[Rpc(RpcSources.StateAuthority, RpcTargets.Proxies)]
+[Rpc(RpcSources.All, RpcTargets.All)]
     public void RpcSyncScore(NetworkBool hostScored)
     {
         var play = FindFirstObjectByType<Play>();
-        if (play != null) play.receive_mp_point(hostScored);
+        if (play == null || play.is_host) return;
+        play.receive_mp_point(hostScored);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    public void RpcSyncPlayState(string stateName)
+    {
+        var play = FindFirstObjectByType<Play>();
+        if (play == null) return;
+        play.apply_remote_play_state(stateName);
+    }
+
+    // Fired by the client when it detects a scoring event (client has state authority
+    // over the ball at that moment, so the host's physics never sees the collision).
+    // The host is the only one that acts on this; it then syncs both scoreboards via
+    // on_score_updated → RpcSyncScore.
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    public void RpcClientNotifyScore(NetworkBool clientScored)
+    {
+        var play = FindFirstObjectByType<Play>();
+        if (play == null || !play.is_host) return;
+        // 'clientScored' carries the raw player_scored value from keep_score, where
+        // "player" refers to the physical HOST side (scene tags are identical on both
+        // machines — no perspective flip needed).
+        play.host_record_score(clientScored);
     }
 }
